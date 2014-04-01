@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html>
+ <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Adjacency matrix graph tool</title>
+	<link type="text/css" rel="stylesheet" href="lib/style.css" />
+	<link type="text/css" rel="stylesheet" href="lib/qtip.css" />
+	
+    <script language="javascript" type="text/javascript" src="lib/jquery.js"></script>
+    <script language="javascript" type="text/javascript" src="lib/kinetic.js"></script>
+    <script type="text/javascript" src="lib/qtip.js"></script>
+	
+<script type="text/javascript">
+	
+	
+	
+var graphsize = 0;
+var connections=new Array();
+var connectionnames={};
+var stage;
+var graphtype = 0;
+var tooltips=new Array();
+var typechanged = 0;
+var c_width = 600;
+var c_height = 400;
+var nodeNames = new Array();
+
+function askMatrixSize(){
+var size=prompt("How large is your matrix","5");
+graphtype = $('input:radio[name=matrixtype]:checked').val();
+
+if (size!=null){
+  askConnections(size);
+  }
+}
+
+function askConnections(basesize){
+	
+	graphsize = parseInt(basesize);
+		
+	var tablecontent = "";
+	var firstround = 1;
+	var firstrow = 1;
+	var firstcol = 1;
+	var tablesize = parseInt(basesize) + 1;
+	var colname = 0;
+	 
+	
+	for(var i = 0;i < tablesize;i++){
+		tablecontent += "<tr>";
+		firstcol = 1;
+		
+		for(var x = 0; x < tablesize;x++){
+			if(firstround > 0){
+				tablecontent += "<td></td>";
+				firstround = 0;
+			}else{
+				if(firstrow > 0){
+					tablecontent += "<td id='rowHeader"+x+"' class='cellheader'>"+x+"</td>";
+					
+					nodeNames.push("rowHeader"+x);
+				}else{
+					if(firstcol > 0){
+						tablecontent += "<td id='nodeHeader"+i+"'>"+i+"</td>";
+						
+						
+						
+						firstcol = 0;
+					}else{
+						if(i == x){
+						tablecontent += "<td><input disabled='disabled' name='matrixval' id='input"+i+"_"+x+"' value='0' type='text' size='4'></td>";
+						}else{
+						tablecontent += "<td><input name='matrixval' id='input"+i+"_"+x+"' value='0' type='text' size='4'></td>";
+						}
+						
+						tooltips.push("input"+i+"_"+x);
+
+
+					}
+				}
+			
+			}
+		}
+		
+		
+
+		
+		
+		firstrow = 0;
+			tablecontent += "</tr>";
+	}
+	$("#matrix").append(tablecontent);
+	
+	drawGraph();
+}
+
+function drawGraph(){
+		
+		if(stage == undefined){
+			stage = new Kinetic.Stage({
+			  container: 'container',
+			  width: c_width,
+			  height: c_height
+			});
+		}
+		
+        var ballayer = new Kinetic.Layer();
+		var linelayer = new Kinetic.Layer();
+		
+		checkConnections();
+	
+	var xpos = 25;
+    var ypos = 30;
+	
+	$('input:radio[name=matrixtype]').change(function() {
+		if(graphtype != $('input:radio[name=matrixtype]:checked').val()){
+			typechanged = 1;
+		}
+		graphtype = $('input:radio[name=matrixtype]:checked').val();
+		updateLines(linelayer, stage);
+	});
+	
+	$('input[name=matrixval]').blur(function() {
+		var parentid = $(this).attr("id");
+		
+		parentid = parentid.replace("input","");
+		
+		var numbers = parentid.split("_");
+		
+		var parentrow = numbers[0];
+		var parentcol = numbers[1];
+		
+		
+		if(parentcol != parentrow){
+			if(graphtype > 0){
+			
+				if($(this).val() > 0){
+					$("#input"+parentcol+"_"+parentrow).val(1);
+				}
+				if($(this).val() < 1 && $("#input"+parentcol+"_"+parentrow).val() > 0){
+					$("#input"+parentcol+"_"+parentrow).val(0);
+				}
+			}
+		}else{
+			if($(this).val() > 2 || ($(this).val() > 0 && $(this).val() < 2)){
+				alert("only values 0 or 2 are accepted!");
+				$(this).val(0);
+			}
+		}
+		
+	});
+	
+	for(var n = 0;n < tooltips.length;n++){
+	
+		$("#"+tooltips[n]).qtip({
+			content: "name(optional):<input type='text' value='' id='"+tooltips[n]+"name' />",
+			show: { solo: true },
+			events: {
+				hide: function(event, api) {
+				updateLines(linelayer, stage);
+				}
+			},
+			position: {
+			my: 'left bottom',
+			at: 'right top',
+			target: true,
+			},
+			show: {
+				event: 'focus'
+			},
+			hide: {
+				event: 'unfocus'
+			}
+		});
+	
+	}
+	
+	
+	
+	$('#toimagebutton').unbind();
+	
+	$("#toimagebutton").click(function() {
+		var sccanvas = document.createElement('canvas');
+		sccanvas.width  = c_width;
+		sccanvas.height = c_height;
+		
+		var ctx3 = sccanvas.getContext('2d');
+		
+		$( "canvas" ).each(function() {
+			ctx3.drawImage($(this)[0], 0, 0);
+		});
+		
+		var dataURL = sccanvas.toDataURL();
+		window.open(dataURL);
+		
+	/*stage.toDataURL({     //Currently bugged in latest kinetic.js, so using own solution until fixed..
+        width: c_width,
+        height: c_height,
+        mimeType: "image/png",
+        callback: function(dataUrl) {
+ 
+		  window.open(dataUrl);
+        }
+      });*/
+	  
+	  
+	});
+	
+	for (var x1 = 0;x1 < graphsize;x1++){
+
+		var tunniste = x1 + 1;
+	
+	    var circle = new Kinetic.Circle({
+          x: xpos,
+          y: ypos,
+          radius: 10,
+          fill: 'black',
+          stroke: 'black',
+          strokeWidth: 2,
+		  draggable: false,
+		  id: 'ball'+tunniste,
+        });
+		
+		 var nodeName = new Kinetic.Text({
+          x: xpos+10,
+          y: ypos-25,
+          text: tunniste,
+          fontSize: 14,
+          fontFamily: "Calibri",
+          fill: "black",
+		  draggable: false,
+		  id: 'text'+x1,
+        });
+
+		var group = new Kinetic.Group({
+          draggable: true
+        });
+		
+
+		
+		group.add(circle);
+		group.add(nodeName);
+		
+        ballayer.add(group);
+		
+		group.on("dragmove", function() {
+			updateLines(linelayer, stage);
+        });
+		
+		
+		
+		if(xpos > 500){
+			xpos = 20;
+			ypos = ypos + 50;
+		}else{
+			xpos = xpos + 55;
+		}
+		
+		
+	}
+
+        stage.add(ballayer);
+		
+	for(var i = 1;i <= graphsize;i++){
+	
+		for(var j = 1;j <= graphsize;j++){
+			$("#input"+i+"_"+j).blur(function() {
+				updateLines(linelayer, stage);	
+			});
+			
+		}
+	}	
+		
+		
+	stage.add(linelayer);
+	updateLines(linelayer, stage);
+	
+	
+	
+		for(var x2 = 0;x2 < nodeNames.length;x2++){
+		var x3 = x2+1;
+		$("#"+nodeNames[x2]).qtip({
+			content: "node "+x3+" name:<input type='text' value='"+x3+"' id='nodeHeader"+x2+"name' />",
+			show: { solo: true },
+			events: {
+				hide: function(event, api) {
+
+						var asd11 = $(this).qtip('option', 'content.text');
+						var temp = new Array();
+						temp = asd11.split(" ");
+						var asd1 = "";
+						for(var y1 = 0;y1 < temp.length;y1++){
+							if(temp[y1].indexOf('i') == 0 && temp[y1].indexOf('d') == 1){
+								asd1 = temp[y1];
+							}
+						}
+						
+						
+						var n=asd1.replace("id='nodeHeader","");
+						n = n.replace("name'","");
+
+						var texttoupdate = '#text'+n;
+						var txttarget = stage.get(texttoupdate)[0];
+						
+						var texttoset = $("#nodeHeader"+n+"name").val();
+						n++;
+						
+						$('#nodeHeader'+n).text(texttoset);
+						$('#rowHeader'+n).text(texttoset);
+						
+						txttarget.setText(texttoset);
+						ballayer.draw();
+						
+					
+				},
+
+			},
+			position: {
+				my: 'left bottom',
+				at: 'right top',
+				target: true,
+			},
+			show: {
+				event: 'click'
+			},
+			hide: {
+				event: 'unfocus'
+			}
+		});
+		
+		
+		
+	}
+	
+}
+
+function checkConnections(){
+	connections = new Array();
+	connectionnames = {};
+	
+	for(var i = 1;i <= graphsize;i++){
+	
+	var currow = new Array();
+	
+	currow.push(i);
+		for(var j = 1;j <= graphsize;j++){
+			if(i == j){
+				if($("#input"+i+"_"+j).val() == 2){
+					currow.push(j);
+					
+					if($("#input"+i+"_"+j+"name").val() != ""){
+						connectionnames[i+"_"+j] = $("#input"+i+"_"+j+"name").val();
+					} 
+					
+				}
+				
+			}else{
+				if($("#input"+i+"_"+j).val() > 0){
+					currow.push(j);
+					
+					if($("#input"+i+"_"+j+"name").val() != ""){
+						connectionnames[i+"_"+j] = $("#input"+i+"_"+j+"name").val();
+					} 
+					if(graphtype > 0 && typechanged == 1){
+						$("#input"+j+"_"+i).val(1);
+						
+					}
+				}
+			}
+		}
+		connections.push(currow);
+	
+	}
+	typechanged = 0;
+}
+
+
+function updateLines(lineLayer, stage) {
+    var context = lineLayer.getContext();
+    lineLayer.clear();
+	
+	checkConnections();
+	
+	//alert(JSON.stringify(connectionnames));
+	
+	context.beginPath();
+	
+	for(var conn = 0;conn < connections.length;conn++){
+		if(connections[conn].length > 1){
+				
+					
+			var ballid = "#ball"+connections[conn][0];
+					
+			var sourcename = stage.get(ballid)[0];
+			
+			var testi2 = sourcename.getAbsolutePosition();
+			
+			var startx = testi2.x;
+			var starty = testi2.y;			
+			
+			
+			var first = 1;
+				
+			for(var conn2 = 0; conn2 < connections[conn].length;conn2++){
+					if(first > 0){
+						first = 0;
+				}else{
+					var targetballid = "#ball"+connections[conn][conn2];
+					var targetname = stage.get(targetballid)[0];
+					var testi = targetname.getAbsolutePosition();
+					
+					var conname = "";
+					if(connectionnames[connections[conn][0]+"_"+connections[conn][conn2]] != undefined){
+						conname = connectionnames[connections[conn][0]+"_"+connections[conn][conn2]];
+					}
+						
+					var stopx = testi.x;
+					var stopy = testi.y;
+					var coordinates = calcEndPos(startx, starty, stopx, stopy);
+					
+					
+					if(sourcename == targetname){
+					
+						//viittaus itseen
+						self_arrow(context, startx, starty, conname);
+						
+					}else{
+					
+						canvas_arrow(context, coordinates[0], coordinates[1], coordinates[2], coordinates[3], conname);
+					}
+				}
+			}
+		}
+	}
+	context.stroke();
+	
+}
+
+function calcEndPos(fromx, fromy, tox, toy){
+	var angle = Math.atan2(toy-fromy,tox-fromx);
+	var length = 10;
+	
+	
+	var startypos = fromy + length*Math.sin(angle);
+	var startxpos = fromx + length*Math.cos(angle);
+	
+	var endypos = toy - length*Math.sin(angle);
+	var endxpos = tox - length*Math.cos(angle);
+	
+	var coords = new Array(startxpos, startypos, endxpos, endypos);
+	
+	return coords;
+	
+}
+
+
+function canvas_arrow(context, fromx, fromy, tox, toy, name){
+    var headlen = 10;
+    var angle = Math.atan2(toy-fromy,tox-fromx);
+	
+	
+	var metric = context.measureText(name); 
+
+	context.save();
+	var textx = (fromx + tox) / 2;
+	var texty = ((fromy - 2) + (toy - 2)) / 2;
+    var tx = textx;
+    var ty = texty;	
+    context.translate(tx,ty);
+	if(angle > -1.5 && angle < 1.5){
+		context.rotate(angle);
+	}else{
+		context.rotate(Math.PI + angle);
+	}
+    context.translate(-tx,-ty);
+	context.font="12px Arial";
+    context.fillText(name, textx, texty);
+    context.restore()
+	
+	
+    context.moveTo(fromx, fromy);
+    context.lineTo(tox, toy);
+	
+	if(graphtype < 1){
+		context.lineTo(tox-headlen*Math.cos(angle-Math.PI/6),toy-headlen*Math.sin(angle-Math.PI/6));
+		context.moveTo(tox, toy);
+		context.lineTo(tox-headlen*Math.cos(angle+Math.PI/6),toy-headlen*Math.sin(angle+Math.PI/6));
+	}
+}
+
+function self_arrow(context, cx, cy, name){
+	
+	var r = 20;
+	
+	context.font="12px Arial";
+    context.fillText(name, cx + 8, cy - 41);
+	
+	context.moveTo(cx, cy-r);
+	
+	var fromx = cx + r * Math.cos(7*Math.PI/4);
+	var fromy = cy + r * Math.sin(7*Math.PI/4);
+	
+	var fromx = fromx + 5; //Purkka "trimmi" TODO keksi parempi laskukaava??
+	var fromy = fromy - 5;
+
+	context.arc(fromx,fromy,20,Math.PI,0.5*Math.PI,false);
+}
+
+
+
+$(document).ready(function () {
+	$("#draw").click( function() {
+	var size = $("#matrixsize").val();
+	if( size != ""){
+		if(graphsize > 0){
+		
+		  var retVal = confirm("Changing matrix size will reset the graph, do you want to continue?");
+		   if( retVal == true ){
+				$("#matrix").empty();
+				if(stage != undefined){
+					//stage.reset();
+					stage.removeChildren();
+					stage.setAttrs(stage.defaultNodeAttrs);
+				}
+				graphtype = $('input:radio[name=matrixtype]:checked').val();
+				c_height = $("#matrixheight").val();
+				c_width = $("#matrixwidth").val();
+				
+				$("#container").width(c_width);
+				$("#container").height(c_height);
+				
+				$('.qtip').each(function(){
+					$(this).remove();
+				})
+				
+				connections=new Array();
+				connectionnames={};
+				tooltips=new Array();
+				nodeNames = new Array();
+				askConnections(size);
+				
+		   }else{
+				$("#matrixsize").val(graphsize);
+			}
+		
+		}else{
+			$("#matrix").empty();
+			if(stage != undefined){
+				stage.reset();
+			}
+			graphtype = $('input:radio[name=matrixtype]:checked').val();
+			c_height = $("#matrixheight").val();
+			c_width = $("#matrixwidth").val();
+				
+			$("#container").width(c_width);
+			$("#container").height(c_height);
+			connections=new Array();
+			connectionnames={};
+			tooltips=new Array();
+			
+			askConnections(size);
+		}
+
+	}else{
+		alert("Input positive integer.");
+	}
+	
+	});
+	
+	$("#matrixwidth").change( function() {
+		c_width = $("#matrixwidth").val();
+		$("#container").width(c_width);
+		
+		if(stage != undefined){
+			stage.setWidth(c_width); 
+		}
+	});
+	
+	$("#matrixheight").change( function() {
+		c_height = $("#matrixheight").val();
+		$("#container").height(c_height);
+		
+		if(stage != undefined){
+			stage.setHeight(c_height); 
+		}
+	});
+	
+});
+
+
+</script>
+	
+ </head>
+    <body>
+	<div id="main">
+		<h1>This is tool for creating adjacency matrix graphs</h1>
+		
+	
+		
+			<div class="options">
+			<table>
+				<tr>
+					<td>Graph size:</td><td><input id="matrixsize" type="text" /></td><td><button id="draw">draw -->></button></td>
+				</tr>
+				<tr><td colspan="4" ><hr/></td></tr>
+				<tr>
+					<td>Canvas width:</td><td><input id="matrixwidth" type="text" value="600" /></td><td class="graphtype">Graphtype:</td><td><input type="radio" name="matrixtype" value="0" checked>Asymmetric</td>
+				</tr>
+				<tr>
+					<td>Canvas height:</td><td><input id="matrixheight" type="text" value="400" /></td><td></td><td><input type="radio" name="matrixtype" value="1">Symmetric</td>
+				</tr>
+			</table>
+			</div>
+
+		<div>
+			<table id="matrix">
+			</table>
+		</div>
+		<br/>
+		<div id="container">
+		</div>
+		</br>
+		<button id="toimagebutton">Convert to png</button><br/>
+	</div>
+	<p>21.08.2013: Updated to work with new browsers.</p>
+	
+	<span id="credits">Made by Heikki Kurhinen</span>
+ </body>
+</html>

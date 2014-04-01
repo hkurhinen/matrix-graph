@@ -1,0 +1,32 @@
+#container{
+border-style:solid;
+border-width:2px;
+width:600px;
+height:400px;
+-webkit-border-radius: 10px;
+border-radius: 10px; 
+}
+#credits{
+position:relative;
+bottom:-30px;
+left:0px;
+font-size:10px;
+color:#333333;
+}
+.cellheader{
+border-style:dashed;
+border-width:1px;
+-webkit-border-radius: 3px;
+border-radius: 3px;
+margin:5px;
+padding:5px; 
+}
+.cellheader:hover{
+background-color:#CCCCCC;
+}
+.options{
+display:table-cell;
+}
+.graphtype{
+padding-left:30px;
+}
